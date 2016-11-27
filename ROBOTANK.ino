@@ -6,22 +6,12 @@ signed int x;
 signed int y;
 signed int old_x=0; 
 signed int old_y=0;
-//signed int z;
-//signed int btna;
-//signed int btnb;
-//float a;
-//float m;
-
-
-//String str;
-char dir = 0;
-
+float dist_cm =0;
 
 int ML1 = 5;
 int ML2 = 4;
 int MR1 = 13;
 int MR2 = 12;
-
 
 int EL = 3;   
 int ER = 11; 
@@ -31,12 +21,6 @@ int er = 0;
 
 int elp = 0;
 int erp = 0;
-
-
-boolean fast = true;
-boolean StateA0 = false;
-boolean StateA1 = false;
-boolean State11 = false;
 
 #define    STX          0x02
 #define    ETX          0x03
@@ -56,12 +40,11 @@ byte cmd[8] = {0, 0, 0, 0, 0, 0, 0, 0};                 // bytes received
 byte buttonStatus = 0;                                  // first Byte sent to Android device
 long previousMillis = 0;                                // will store last time Buttons status was updated
 long sendInterval = SLOW;                               // interval between Buttons status transmission (milliseconds)
-String displayStatus = "xxxx";                          // message to Android device
+String displayStatus = "ROBOTANK";                          // message to Android device
 
 void setup()  {
     Serial.begin(57600);
-    mySerial
-    .begin(57600);                                // 57600 = max value for softserial
+    mySerial.begin(57600);                                // 57600 = max value for softserial
     pinMode(ledPin, OUTPUT);     
     Serial.println(VERSION);
     while(mySerial.available())  mySerial.read();         // empty RX buffer
@@ -117,7 +100,8 @@ void sendBlueToothData()  {
   
       mySerial.print((char)STX);                                             // Start of Transmission
       mySerial.print(getButtonStatusString());  mySerial.print((char)0x1);   // buttons status feedback
-      mySerial.print(GetdataInt1());            mySerial.print((char)0x4);   // datafield #1
+      //mySerial.print(GetdataInt1());            mySerial.print((char)0x4);   // datafield #1
+      mySerial.print(dist_cm);                  mySerial.print((char)0x4);   // datafield #1
       mySerial.print(GetdataFloat2());          mySerial.print((char)0x5);   // datafield #2
       mySerial.print(displayStatus);                                         // datafield #3
       mySerial.print((char)ETX);                                             // End of Transmission
