@@ -4,11 +4,22 @@
 
 signed int x; 
 signed int y;
+signed int BT_x;
+signed int BT_y;
 signed int old_x=0; 
 signed int old_y=0;
 float  dist_cm =0;
 long SonarInterval=300;
+long RotateInterval = 300;
 int  SonaeEN = 1;
+int  AutoPilotEN = 0;
+
+// в сантиметрах (distance threshold) Пороги расстояний до препятствия
+// Если ближе, то резкий разворот на месте, иначе плавный доворот
+const int DST_TRH_TURN = 28;
+// Если ближе, то стоп и назад
+const int DST_TRH_BACK = 20;
+
 
 int ML1 = 5;
 int ML2 = 4;
@@ -68,6 +79,7 @@ void setup()  {
 void loop() {
     BTjoystic();
     SonarDistance();
+    Autopilot();
     process();
     sendBlueToothData();
 }
@@ -176,17 +188,17 @@ void getButtonState(int bStatus)  {
 // -----------------  BUTTON #2  -----------------------
     case 'C':
       buttonStatus |= B000010;        // ON
-      Serial.println("\n** Button_2: ON **");
+      Serial.println("\n** AutoPilot: ON **");
       // your code...      
-      displayStatus = "Button2 <ON>";
-      Serial.println(displayStatus);
+      displayStatus = "AutoPilot <ON>";
+      AutoPilotEN =1;
       break;
     case 'D':
       buttonStatus &= B111101;        // OFF
-      Serial.println("\n** Button_2: OFF **");
+      Serial.println("\n** AutoPilot: OFF **");
       // your code...      
-      displayStatus = "Button2 <OFF>";
-      Serial.println(displayStatus);
+      displayStatus = "AutoPilot <OFF>";
+      AutoPilotEN =0;
       break;
 
 // -----------------  BUTTON #3  -----------------------
@@ -257,19 +269,49 @@ void SonarDistance()
 {
   static long previousMillis = 0;                             
   long currentMillis = millis();
-   if(currentMillis - previousMillis > SonarInterval) 
+  
+  if(currentMillis - previousMillis > SonarInterval) 
    {   // send data back to smartphone
       previousMillis = currentMillis; 
       dist_cm = ultrasonic.Ranging(CM);       // get distance
       Serial.println(dist_cm);                      // print the distance
-      
-      if(SonaeEN == 1)
-      {
-        if(y>0 && dist_cm < 30) y=25;
-        if(y>0 && dist_cm < 10) y=0;
-      }
-    }
+   
+   }
 }
+
+void Autopilot()
+{
+  if(AutoPilotEN == 1)
+  {
+    static long previousMillis = 0;                             
+    long currentMillis = millis();
+  
+    if(currentMillis - previousMillis > RotateInterval) 
+     {   // send data back to smartphone
+      previousMillis = currentMillis;    
+      if ( dist_cm <= DST_TRH_BACK ) {
+        // стоп
+        x=0;
+        y=0;
+        // ранее уже поворачивали задним ходом влево?
+        //if (MOTOR_TURN_BACK_LEFT == MOTOR_PREV_DIRECTION) {
+          x=25;
+          y=-25;
+        //} else {
+         // x=-25
+         // y=-25;;
+        //}
+        
+        return; // начать новый loop()
+      }else y =25;
+    }
+  }else
+  {
+     if(y>0 && dist_cm < 30) y=25;
+     if(SonaeEN == 1) if(y>0 && dist_cm < 10) y=0;  
+  }
+}
+
 
 void process(){
 
