@@ -6,7 +6,9 @@ signed int x;
 signed int y;
 signed int old_x=0; 
 signed int old_y=0;
-float dist_cm =0;
+float  dist_cm =0;
+long SonarInterval=300;
+int  SonaeEN = 1;
 
 int ML1 = 5;
 int ML2 = 4;
@@ -65,6 +67,7 @@ void setup()  {
 
 void loop() {
     BTjoystic();
+    SonarDistance();
     process();
     sendBlueToothData();
 }
@@ -157,17 +160,17 @@ void getButtonState(int bStatus)  {
       buttonStatus |= B000001;        // ON
       Serial.println("\n** Button_1: ON **");
       // your code...      
-      displayStatus = "LED <ON>";
+      displayStatus = "Sunar <ON>";
       Serial.println(displayStatus);
-      digitalWrite(ledPin, HIGH);
+      SonaeEN = 1;
       break;
     case 'B':
       buttonStatus &= B111110;        // OFF
       Serial.println("\n** Button_1: OFF **");
       // your code...      
-      displayStatus = "LED <OFF>";
+      displayStatus = "Sonar <OFF>";
       Serial.println(displayStatus);
-      digitalWrite(ledPin, LOW);
+      SonaeEN =0;
       break;
 
 // -----------------  BUTTON #2  -----------------------
@@ -250,18 +253,31 @@ void getButtonState(int bStatus)  {
 }
 
 
+void SonarDistance()
+{
+  static long previousMillis = 0;                             
+  long currentMillis = millis();
+   if(currentMillis - previousMillis > SonarInterval) 
+   {   // send data back to smartphone
+      previousMillis = currentMillis; 
+      dist_cm = ultrasonic.Ranging(CM);       // get distance
+      Serial.println(dist_cm);                      // print the distance
+      
+      if(SonaeEN == 1)
+      {
+        if(y>0 && dist_cm < 30) y=25;
+        if(y>0 && dist_cm < 10) y=0;
+      }
+    }
+}
+
 void process(){
 
     if(x != old_x || y != old_y)
     {
       old_x = x;
       old_y = y;
-      float dist_cm = ultrasonic.Ranging(CM);       // get distance
-      Serial.println(dist_cm);                      // print the distance
-    
-      if(y>0 && dist_cm < 30) y=25;
-      if(y>0 && dist_cm < 10) y=0;
-      
+            
       signed int gaz_x = map(x, -100, 100, -192, 192);
       signed int gaz_y = map(y, -100, 100, -254, 254);
   
