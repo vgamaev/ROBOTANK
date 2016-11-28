@@ -2,15 +2,18 @@
 
 #include "SoftwareSerial.h"
 
-signed int x; 
-signed int y;
-signed int BT_x;
-signed int BT_y;
+signed int x =0; 
+signed int y =0;
 signed int old_x=0; 
 signed int old_y=0;
+signed int BT_x =0;
+signed int BT_y =0;
+signed int AutoPilot_x=0; 
+signed int AutoPilot_y=0;
+
 float  dist_cm =0;
 long SonarInterval=300;
-long RotateInterval = 300;
+long RotateInterval = 1500;
 int  SonaeEN = 1;
 int  AutoPilotEN = 0;
 
@@ -18,7 +21,7 @@ int  AutoPilotEN = 0;
 // Если ближе, то резкий разворот на месте, иначе плавный доворот
 const int DST_TRH_TURN = 28;
 // Если ближе, то стоп и назад
-const int DST_TRH_BACK = 20;
+const int DST_TRH_BACK = 25;
 
 
 int ML1 = 5;
@@ -80,6 +83,7 @@ void loop() {
     BTjoystic();
     SonarDistance();
     Autopilot();
+    Mixer();
     process();
     sendBlueToothData();
 }
@@ -160,8 +164,8 @@ void getJoystickState(byte data[8])    {
     Serial.print(", ");  
     Serial.println(joyY); 
 
-    x = joyX;
-    y = joyY;
+    BT_x = joyX;
+    BT_y = joyY;
    // process();
 }
 
@@ -287,28 +291,49 @@ void Autopilot()
     long currentMillis = millis();
   
     if(currentMillis - previousMillis > RotateInterval) 
-     {   // send data back to smartphone
+     {// send data back to smartphone
       previousMillis = currentMillis;    
+
+      Serial.println("AUTOPILOT WORK");
       if ( dist_cm <= DST_TRH_BACK ) {
         // стоп
-        x=0;
-        y=0;
+        AutoPilot_x=0;
+        AutoPilot_y=0;
         // ранее уже поворачивали задним ходом влево?
         //if (MOTOR_TURN_BACK_LEFT == MOTOR_PREV_DIRECTION) {
-          x=25;
-          y=-25;
+          AutoPilot_x=25;
+          AutoPilot_y=-25;
         //} else {
          // x=-25
          // y=-25;;
         //}
         
         return; // начать новый loop()
-      }else y =25;
+      }else 
+      {
+        AutoPilot_y=25;
+        AutoPilot_x=0;
+        Serial.println("EDEM PRAMO");
+      }
     }
   }else
   {
-     if(y>0 && dist_cm < 30) y=25;
-     if(SonaeEN == 1) if(y>0 && dist_cm < 10) y=0;  
+     if(BT_y>0 && dist_cm < 30) BT_y=25;
+     if(SonaeEN == 1) if(BT_y>0 && dist_cm < 10) BT_y=0;  
+  }
+}
+
+void Mixer()
+{
+  if(AutoPilotEN == 1 && BT_x ==0 && BT_y ==0)
+  {
+    x = AutoPilot_x;
+    y = AutoPilot_y;
+  }
+  else
+  {
+    x=BT_x;
+    y=BT_y;
   }
 }
 
