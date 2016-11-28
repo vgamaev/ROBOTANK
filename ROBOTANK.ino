@@ -19,9 +19,20 @@ int  AutoPilotEN = 0;
 
 // в сантиметрах (distance threshold) Пороги расстояний до препятствия
 // Если ближе, то резкий разворот на месте, иначе плавный доворот
-const int DST_TRH_TURN = 28;
+const int DST_TRH_TURN = 35;
 // Если ближе, то стоп и назад
 const int DST_TRH_BACK = 25;
+
+ // Виды поворотов
+const byte MOTOR_ROTATE_RIGHT = 0;  // вправо резкий разворот на месте (все левые колеса крутятся вперед, все правые - назад)
+const byte MOTOR_TURN_RIGHT   = 1;  // вправо плавный поворот
+const byte MOTOR_ROTATE_LEFT  = 2;  // влево резкий разворот на месте
+const byte MOTOR_TURN_LEFT    = 3;  // влево плавный поворот
+const byte MOTOR_TURN_BACK_RIGHT = 4; // поворот вправо задним ходом
+const byte MOTOR_TURN_BACK_LEFT  = 5;
+
+byte MOTOR_PREV_DIRECTION; // предыдущее выполненное направление движения
+
 
 
 int ML1 = 5;
@@ -295,23 +306,42 @@ void Autopilot()
       previousMillis = currentMillis;    
 
       Serial.println("AUTOPILOT WORK");
-      if ( dist_cm <= DST_TRH_BACK ) {
+
+      // определить направление поворота
+      // прямо
+      if ( dist_cm < DST_TRH_TURN && dist_cm >DST_TRH_BACK)   {
+         AutoPilot_x=0;
+         AutoPilot_y=0;      
+        // направление поворота выбираем рандомно
+        int rnd = random(1, 10);
+        if (rnd > 5) {
+            AutoPilot_x=40;
+            AutoPilot_y=-0;
+            MOTOR_PREV_DIRECTION = MOTOR_TURN_BACK_RIGHT;
+        } else {
+            AutoPilot_x=-40;
+            AutoPilot_y=-0;
+            MOTOR_PREV_DIRECTION = MOTOR_TURN_BACK_LEFT;
+        }
+      }else if ( dist_cm <= DST_TRH_BACK ) {
         // стоп
         AutoPilot_x=0;
         AutoPilot_y=0;
         // ранее уже поворачивали задним ходом влево?
-        //if (MOTOR_TURN_BACK_LEFT == MOTOR_PREV_DIRECTION) {
-          AutoPilot_x=25;
-          AutoPilot_y=-25;
-        //} else {
-         // x=-25
-         // y=-25;;
-        //}
+        if (MOTOR_TURN_BACK_LEFT == MOTOR_PREV_DIRECTION) {
+            AutoPilot_x=25;
+            AutoPilot_y=-25;
+            MOTOR_PREV_DIRECTION = MOTOR_TURN_BACK_RIGHT;
+        } else {
+            AutoPilot_x=-25;
+            AutoPilot_y=-25;
+            MOTOR_PREV_DIRECTION = MOTOR_TURN_BACK_LEFT;
+        }
         
-        return; // начать новый loop()
+        return; 
       }else 
       {
-        AutoPilot_y=25;
+        AutoPilot_y=30;
         AutoPilot_x=0;
         Serial.println("EDEM PRAMO");
       }
