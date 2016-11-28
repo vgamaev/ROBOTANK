@@ -351,15 +351,15 @@ void MotorForward()
 
 void MotorTurnBackLeft()
 {
-    AutoPilot_x=-25;
-    AutoPilot_y=-25;
+    AutoPilot_x=-35;
+    AutoPilot_y=-30;
     MOTOR_PREV_DIRECTION = MOTOR_TURN_BACK_LEFT;
 }
 
 void MotorTurnBackRight()
 {
-    AutoPilot_x=25;
-    AutoPilot_y=-25;
+    AutoPilot_x=35;
+    AutoPilot_y=-30;
     MOTOR_PREV_DIRECTION = MOTOR_TURN_BACK_RIGHT;
 }
 
