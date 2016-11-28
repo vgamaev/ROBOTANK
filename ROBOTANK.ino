@@ -13,13 +13,14 @@ signed int AutoPilot_y=0;
 
 float  dist_cm =0;
 long SonarInterval=300;
-long RotateInterval = 1500;
+long RotateInterval = 500;
+long RotateIntervalRND = 0;
 int  SonaeEN = 1;
 int  AutoPilotEN = 0;
 
 // в сантиметрах (distance threshold) Пороги расстояний до препятствия
 // Если ближе, то резкий разворот на месте, иначе плавный доворот
-const int DST_TRH_TURN = 35;
+const int DST_TRH_TURN = 40;
 // Если ближе, то стоп и назад
 const int DST_TRH_BACK = 25;
 
@@ -55,6 +56,8 @@ int erp = 0;
 #define    SLOW         750                            // Datafields refresh rate (ms)
 #define    FAST         250                             // Datafields refresh rate (ms)
 
+#define   RANDOMPORT 5
+
 #include "Ultrasonic.h"
 
 // sensor connected to:
@@ -75,6 +78,7 @@ void setup()  {
     pinMode(ledPin, OUTPUT);     
     Serial.println(VERSION);
     while(mySerial.available())  mySerial.read();         // empty RX buffer
+    randomSeed(analogRead(RANDOMPORT));
   
     pinMode(ER, OUTPUT); 
     pinMode(EL, OUTPUT); 
@@ -300,57 +304,83 @@ void Autopilot()
   {
     static long previousMillis = 0;                             
     long currentMillis = millis();
-  
-    if(currentMillis - previousMillis > RotateInterval) 
+     
+    if(currentMillis - previousMillis > RotateIntervalRND) 
      {// send data back to smartphone
       previousMillis = currentMillis;    
+      RotateIntervalRND = RotateInterval * random(1,4);
 
       Serial.println("AUTOPILOT WORK");
 
       // определить направление поворота
       // прямо
-      if ( dist_cm < DST_TRH_TURN && dist_cm >DST_TRH_BACK)   {
-         AutoPilot_x=0;
-         AutoPilot_y=0;      
+      if ( dist_cm < DST_TRH_TURN && dist_cm >DST_TRH_BACK)   
+      {
+         MotorStop();     
         // направление поворота выбираем рандомно
         int rnd = random(1, 10);
-        if (rnd > 5) {
-            AutoPilot_x=40;
-            AutoPilot_y=-0;
-            MOTOR_PREV_DIRECTION = MOTOR_TURN_BACK_RIGHT;
-        } else {
-            AutoPilot_x=-40;
-            AutoPilot_y=-0;
-            MOTOR_PREV_DIRECTION = MOTOR_TURN_BACK_LEFT;
-        }
-      }else if ( dist_cm <= DST_TRH_BACK ) {
-        // стоп
-        AutoPilot_x=0;
-        AutoPilot_y=0;
-        // ранее уже поворачивали задним ходом влево?
-        if (MOTOR_TURN_BACK_LEFT == MOTOR_PREV_DIRECTION) {
-            AutoPilot_x=25;
-            AutoPilot_y=-25;
-            MOTOR_PREV_DIRECTION = MOTOR_TURN_BACK_RIGHT;
-        } else {
-            AutoPilot_x=-25;
-            AutoPilot_y=-25;
-            MOTOR_PREV_DIRECTION = MOTOR_TURN_BACK_LEFT;
-        }
-        
-        return; 
-      }else 
-      {
-        AutoPilot_y=30;
-        AutoPilot_x=0;
-        Serial.println("EDEM PRAMO");
+        if (rnd > 5) MotorTurnRotateRight();
+        else MotorTurnRotateLeft();
       }
+      else if ( dist_cm <= DST_TRH_BACK ) 
+      {
+            // стоп
+            MotorStop();
+            // ранее уже поворачивали задним ходом влево?
+            if (MOTOR_TURN_BACK_LEFT == MOTOR_PREV_DIRECTION) MotorTurnBackRight();
+            else MotorTurnBackLeft();        
+            return; 
+            
+      }
+      else  MotorForward();
     }
-  }else
+  }
+  else
   {
      if(BT_y>0 && dist_cm < 30) BT_y=25;
      if(SonaeEN == 1) if(BT_y>0 && dist_cm < 10) BT_y=0;  
   }
+}
+
+void MotorForward()
+{
+    AutoPilot_y=35;
+    AutoPilot_x=0;
+    Serial.println("EDEM PRAMO");
+}
+
+void MotorTurnBackLeft()
+{
+    AutoPilot_x=-25;
+    AutoPilot_y=-25;
+    MOTOR_PREV_DIRECTION = MOTOR_TURN_BACK_LEFT;
+}
+
+void MotorTurnBackRight()
+{
+    AutoPilot_x=25;
+    AutoPilot_y=-25;
+    MOTOR_PREV_DIRECTION = MOTOR_TURN_BACK_RIGHT;
+}
+
+void MotorTurnRotateLeft()
+{
+    AutoPilot_x=-50;
+    AutoPilot_y=0;
+    //MOTOR_PREV_DIRECTION = MOTOR_TURN_BACK_LEFT;
+}
+
+void MotorTurnRotateRight()
+{
+     AutoPilot_x=50;
+     AutoPilot_y=0;
+     //MOTOR_PREV_DIRECTION = MOTOR_TURN_BACK_RIGHT;
+}
+
+void MotorStop()
+{
+     AutoPilot_x=0;
+     AutoPilot_y=0; 
 }
 
 void Mixer()
