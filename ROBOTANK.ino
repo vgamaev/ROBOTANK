@@ -14,6 +14,8 @@ signed int AutoPilot_y=0;
 float  dist_cm =0;
 long SonarInterval=300;
 long RotateInterval = 500;
+long FaleSafeInterval = 2000;
+int  AutopilotRotate=1;
 long RotateIntervalRND = 0;
 int  SonaeEN = 1;
 int  AutoPilotEN = 0;
@@ -104,8 +106,14 @@ void loop() {
 }
 
 void BTjoystic(){
+  static long previousMillis = 0;                             
+  long currentMillis = millis();
+     
+  if(currentMillis - previousMillis > FaleSafeInterval) x=0; y=0; // если сигнал с ьлуетуза пропал то останавливаем движки
+       
   if(mySerial.available())  {                           // data received from smartphone
     delay(2);
+    previousMillis = currentMillis;    
     cmd[0] =  mySerial.read();  
     if(cmd[0] == STX)  {
       int i=1;      
@@ -316,23 +324,29 @@ void Autopilot()
       // прямо
       if ( dist_cm < DST_TRH_TURN && dist_cm >DST_TRH_BACK)   
       {
-         MotorStop();     
+         MotorStop();
+         AutopilotRotate=1;     
         // направление поворота выбираем рандомно
         int rnd = random(1, 10);
         if (rnd > 5) MotorTurnRotateRight();
         else MotorTurnRotateLeft();
       }
-      else if ( dist_cm <= DST_TRH_BACK ) 
+      else if ( dist_cm <= DST_TRH_BACK || AutopilotRotate==8) 
       {
             // стоп
             MotorStop();
+            AutopilotRotate=1;
             // ранее уже поворачивали задним ходом влево?
             if (MOTOR_TURN_BACK_LEFT == MOTOR_PREV_DIRECTION) MotorTurnBackRight();
             else MotorTurnBackLeft();        
             return; 
             
       }
-      else  MotorForward();
+      else  
+      {
+        MotorForward();
+        AutopilotRotate++;
+      }
     }
   }
   else
@@ -365,14 +379,14 @@ void MotorTurnBackRight()
 
 void MotorTurnRotateLeft()
 {
-    AutoPilot_x=-50;
+    AutoPilot_x=-60;  //50 было сносно
     AutoPilot_y=0;
     //MOTOR_PREV_DIRECTION = MOTOR_TURN_BACK_LEFT;
 }
 
 void MotorTurnRotateRight()
 {
-     AutoPilot_x=50;
+     AutoPilot_x=60;
      AutoPilot_y=0;
      //MOTOR_PREV_DIRECTION = MOTOR_TURN_BACK_RIGHT;
 }
