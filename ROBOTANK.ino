@@ -17,8 +17,11 @@ long RotateInterval = 500;
 long FaleSafeInterval = 2000;
 int  AutopilotRotate=1;
 long RotateIntervalRND = 0;
+long RazgonTimeOut =100;
 int  SonaeEN = 1;
 int  AutoPilotEN = 0;
+
+#define RAZGON_STEP 7
 
 // в сантиметрах (distance threshold) Пороги расстояний до препятствия
 // Если ближе, то резкий разворот на месте, иначе плавный доворот
@@ -316,7 +319,7 @@ void Autopilot()
     if(currentMillis - previousMillis > RotateIntervalRND) 
      {// send data back to smartphone
       previousMillis = currentMillis;    
-      RotateIntervalRND = RotateInterval * random(1,4);
+      RotateIntervalRND = RotateInterval + 200 * random(1,6);      //4
 
       Serial.println("AUTOPILOT WORK");
 
@@ -331,7 +334,7 @@ void Autopilot()
         if (rnd > 5) MotorTurnRotateRight();
         else MotorTurnRotateLeft();
       }
-      else if ( dist_cm <= DST_TRH_BACK || AutopilotRotate==8) 
+      else if ( dist_cm <= DST_TRH_BACK || AutopilotRotate==10) 
       {
             // стоп
             MotorStop();
@@ -414,52 +417,66 @@ void Mixer()
 
 void process(){
 
-    if(x != old_x || y != old_y)
-    {
-      old_x = x;
-      old_y = y;
-            
-      signed int gaz_x = map(x, -100, 100, -192, 192);
-      signed int gaz_y = map(y, -100, 100, -254, 254);
-  
-      
-      er = gaz_y + gaz_x;
-      el = gaz_y - gaz_x;
+    static long previousMillis = 0;                             
+    long currentMillis = millis();
+     
+    if(currentMillis - previousMillis > RazgonTimeOut) 
+     {// send data back to smartphone
+      previousMillis = currentMillis;    
+      if(x != old_x || y != old_y)
+      {
+        if(x > 0 && x-old_x > 10) x= old_x + RAZGON_STEP;    //плавный разгон
+        else if(x < 0 && x-old_x < -10)  x= old_x - RAZGON_STEP;  
+        
+        if(y > 0 && y-old_y > 10) y= old_y + RAZGON_STEP;
+        else if(y < 0 && y-old_y < -10)  y= old_y - RAZGON_STEP;  
+        old_x = x;
+        old_y = y;
+              
+        signed int gaz_x = map(x, -100, 100, -192, 192);
+        signed int gaz_y = map(y, -100, 100, -254, 254);
     
-      //left motor control:
+        
+        er = gaz_y + gaz_x;
+        el = gaz_y - gaz_x;
       
-      if (er < 0) { 
-        digitalWrite(MR1, HIGH);
-        digitalWrite(MR2, LOW);  
-      } 
+        //left motor control:
+        
+        if (er < 0) { 
+          digitalWrite(MR1, HIGH);
+          digitalWrite(MR2, LOW);  
+        } 
+        
+        else if (er >= 0) { 
+          digitalWrite(MR1, LOW);
+          digitalWrite(MR2, HIGH);
+        } 
+        
+        erp = abs(er);
+        if(erp > 254) erp = 254;
+        
+        //right motor control:
       
-      else if (er >= 0) { 
-        digitalWrite(MR1, LOW);
-        digitalWrite(MR2, HIGH);
-      } 
+        if (el < 0) { 
+          digitalWrite(ML1, HIGH); 
+          digitalWrite(ML2, LOW); 
+        } 
+        
+        else if (el >= 0)  {
+          digitalWrite(ML1, LOW); 
+          digitalWrite(ML2, HIGH); 
+        } 
+        
+        elp = abs(el);
+        if(elp > 254) elp = 254;
+                                                       
+        analogWrite(EL, elp);  
+        analogWrite(ER, erp);  
       
-      erp = abs(er);
-      if(erp > 254) erp = 254;
-      
-      //right motor control:
-    
-      if (el < 0) { 
-        digitalWrite(ML1, HIGH); 
-        digitalWrite(ML2, LOW); 
-      } 
-      
-      else if (el >= 0)  {
-        digitalWrite(ML1, LOW); 
-        digitalWrite(ML2, HIGH); 
-      } 
-      
-      elp = abs(el);
-      if(elp > 254) elp = 254;
-                                                     
-      analogWrite(EL, elp);  
-      analogWrite(ER, erp);  
-    
-      Serial.println(elp);
-      Serial.println(erp);
+        Serial.println(elp);
+        Serial.println(erp);
+    }
   }  
 }
+
+
