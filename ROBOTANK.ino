@@ -96,7 +96,7 @@ void setup()  {
     pinMode(A0, OUTPUT); 
     pinMode(A1, OUTPUT); 
     pinMode(10,OUTPUT);
-    digitalWrite(10,LOW);
+    digitalWrite(2,LOW);
 }
 
 void loop() {
@@ -234,16 +234,18 @@ void getButtonState(int bStatus)  {
 // -----------------  BUTTON #3  -----------------------
     case 'E':
       buttonStatus |= B000100;        // ON
-      Serial.println("\n** Button_3: ON **");
+      Serial.println("\n** Svet ON **");
       // your code...      
-      displayStatus = "Motor #1 enabled"; // Demo text message
+      digitalWrite(2,HIGH);
+      displayStatus = "Swet ON"; // Demo text message
       Serial.println(displayStatus);
       break;
     case 'F':
       buttonStatus &= B111011;      // OFF
-      Serial.println("\n** Button_3: OFF **");
+      Serial.println("\n** Svet OFF **");
       // your code...      
-      displayStatus = "Motor #1 stopped";
+      digitalWrite(2,LOW);
+      displayStatus = "Svet OFF";
       Serial.println(displayStatus);
       break;
 
