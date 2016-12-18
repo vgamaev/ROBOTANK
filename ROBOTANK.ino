@@ -10,18 +10,25 @@ signed int BT_x =0;
 signed int BT_y =0;
 signed int AutoPilot_x=0; 
 signed int AutoPilot_y=0;
+float Current =0;
+// float CurentOLD = 0;
 
 float  dist_cm =0;
 long SonarInterval=300;
-long RotateInterval = 500;
+long RotateInterval = 300;
 long FaleSafeInterval = 2000;
 int  AutopilotRotate=1;
 long RotateIntervalRND = 0;
 long RazgonTimeOut =100;
+long CurentMeterInt = 300;
 int  SonaeEN = 1;
 int  AutoPilotEN = 0;
+int  MotorOK = 0;
 
 #define RAZGON_STEP 7
+#define CURENT_PORT A7
+#define SLOWCOUNT 10
+#define FASTCOUNT 32
 
 // в сантиметрах (distance threshold) Пороги расстояний до препятствия
 // Если ближе, то резкий разворот на месте, иначе плавный доворот
@@ -36,6 +43,7 @@ const byte MOTOR_ROTATE_LEFT  = 2;  // влево резкий разворот 
 const byte MOTOR_TURN_LEFT    = 3;  // влево плавный поворот
 const byte MOTOR_TURN_BACK_RIGHT = 4; // поворот вправо задним ходом
 const byte MOTOR_TURN_BACK_LEFT  = 5;
+const byte MOTOR_FORWARD = 6;         // Движение вперед
 
 byte MOTOR_PREV_DIRECTION; // предыдущее выполненное направление движения
 
@@ -93,8 +101,8 @@ void setup()  {
     pinMode(MR2, OUTPUT); 
     
     pinMode(11, OUTPUT); 
-    pinMode(A0, OUTPUT); 
-    pinMode(A1, OUTPUT); 
+    //pinMode(A0, OUTPUT); 
+    //pinMode(A1, OUTPUT); 
     pinMode(10,OUTPUT);
     digitalWrite(2,LOW);
 }
@@ -102,6 +110,7 @@ void setup()  {
 void loop() {
     BTjoystic();
     SonarDistance();
+    CurrentMeter();
     Autopilot();
     Mixer();
     process();
@@ -147,7 +156,7 @@ void sendBlueToothData()  {
       mySerial.print(getButtonStatusString());  mySerial.print((char)0x1);   // buttons status feedback
       //mySerial.print(GetdataInt1());            mySerial.print((char)0x4);   // datafield #1
       mySerial.print(dist_cm);                  mySerial.print((char)0x4);   // datafield #1
-      mySerial.print(GetdataFloat2());          mySerial.print((char)0x5);   // datafield #2
+      mySerial.print(Current);                   mySerial.print((char)0x5);   // datafield #2
       mySerial.print(displayStatus);                                         // datafield #3
       mySerial.print((char)ETX);                                             // End of Transmission
   }  
@@ -296,6 +305,62 @@ void getButtonState(int bStatus)  {
 // ---------------------------------------------------------------
 }
 
+/*
+void CurrentMeter()
+{
+  static long previousMillis = 0;                             
+  long currentMillis = millis();
+  
+  if(currentMillis - previousMillis > CurentMeterInt) 
+   {   // send data back to smartphone
+      previousMillis = currentMillis; 
+//      CurrentOLD = Current;
+      Current = 0.0264 * (analogRead(CURENT_PORT) -512);
+      //Curent = Curent + (0.0264 * analogRead(CURENT_PORT) -13.51) / 1000;
+      Serial.println("Curent A ");   
+      Serial.println(Current);   
+   }
+}
+
+*/
+long GetInstantCurrent()
+{
+ long value = 0;
+ for (int i = 0; i < FASTCOUNT; ++i)
+  value += analogRead(CURENT_PORT);
+ value /= FASTCOUNT;
+ return value;
+}
+
+inline float GetCurrentFromLong(long value)
+{
+ Serial.println("Curent ADC ");   
+ Serial.println(value);   
+ return  0.0264 * (value - 506);  //0.0264 0.0376
+}
+
+
+long CountBuf[SLOWCOUNT] = { 0 };
+int curCount = 0;
+long SummCount = 0;
+
+long GetIntegratedCurrent()
+{
+ SummCount -= CountBuf[curCount];
+ CountBuf[curCount] = GetInstantCurrent();
+ SummCount += CountBuf[curCount];
+ if (++curCount >= SLOWCOUNT)
+  curCount = 0;
+ return (SummCount / SLOWCOUNT);
+}
+ 
+void CurrentMeter()
+{
+ Current = - GetCurrentFromLong(GetIntegratedCurrent());
+ Serial.println("Curent A ");   
+ Serial.println(Current);   
+}
+
 
 void SonarDistance()
 {
@@ -311,14 +376,17 @@ void SonarDistance()
    }
 }
 
+//void Autopilot2
+
 void Autopilot()
 {
   if(AutoPilotEN == 1)
   {
+    int rnd =0 ;
     static long previousMillis = 0;                             
     long currentMillis = millis();
      
-    if(currentMillis - previousMillis > RotateIntervalRND) 
+    if(currentMillis - previousMillis > RotateInterval) 
      {// send data back to smartphone
       previousMillis = currentMillis;    
       RotateIntervalRND = RotateInterval + 200 * random(1,6);      //4
@@ -329,29 +397,33 @@ void Autopilot()
       // прямо
       if ( dist_cm < DST_TRH_TURN && dist_cm >DST_TRH_BACK)   
       {
-         MotorStop();
-         AutopilotRotate=1;     
         // направление поворота выбираем рандомно
-        int rnd = random(1, 10);
-        if (rnd > 5) MotorTurnRotateRight();
-        else MotorTurnRotateLeft();
+        if(MOTOR_PREV_DIRECTION == MOTOR_FORWARD)
+        {
+          rnd = random(1, 10);
+          if (rnd > 5) MotorTurnRotateRight();
+          else MotorTurnRotateLeft();
+          
+        } else if(MOTOR_PREV_DIRECTION == MOTOR_ROTATE_RIGHT) MotorTurnRotateRight(); //поворачиваем в туже сторону пока не кончится препядствие
+               else MotorTurnRotateLeft();
+                
       }
-      else if ( dist_cm <= DST_TRH_BACK || AutopilotRotate==10) 
+      else if ( dist_cm <= DST_TRH_BACK 
       {
-            // стоп
-            MotorStop();
-            AutopilotRotate=1;
             // ранее уже поворачивали задним ходом влево?
             if (MOTOR_TURN_BACK_LEFT == MOTOR_PREV_DIRECTION) MotorTurnBackRight();
             else MotorTurnBackLeft();        
             return; 
             
       }
-      else  
-      {
-        MotorForward();
-        AutopilotRotate++;
-      }
+      else if(AutopilotRotate==10) 
+       {
+          rnd = random(1, 10);
+          if (rnd > 5)MotorTurnBackRight();
+          else MotorTurnBackLeft();        
+            return; 
+       }
+      else MotorForward();
     }
   }
   else
@@ -361,45 +433,77 @@ void Autopilot()
   }
 }
 
+
+void MotorControl(signed int MotorX, signed int MotorY, long MotorWorkInt)
+{
+    static long previousMillis = 0;                             
+    long currentMillis = millis();
+         
+    if(currentMillis - previousMillis > MotorWorkInt) 
+     {
+        previousMillis = currentMillis;    
+        AutoPilot_x = MotorX;
+        AutoPilot_y = MotorY;
+        MotorOK = 1;
+     } else MotorOK = 0;
+}
+
 void MotorForward()
 {
-    AutoPilot_y=35;
-    AutoPilot_x=0;
+    MotorControl(0, 35, RotateIntervalRND);
+    if(MotorOK ==1)
+    {
+        MOTOR_PREV_DIRECTION = MOTOR_FORWARD;
+        AutopilotRotate++;
+    }
     Serial.println("EDEM PRAMO");
 }
 
 void MotorTurnBackLeft()
 {
-    AutoPilot_x=-35;
-    AutoPilot_y=-30;
-    MOTOR_PREV_DIRECTION = MOTOR_TURN_BACK_LEFT;
+    MotorControl(-35, -30, RotateIntervalRND);
+    if(MotorOK ==1)
+    {
+      MOTOR_PREV_DIRECTION = MOTOR_TURN_BACK_LEFT;
+      AutopilotRotate=1;  
+    }
 }
 
 void MotorTurnBackRight()
 {
-    AutoPilot_x=35;
-    AutoPilot_y=-30;
-    MOTOR_PREV_DIRECTION = MOTOR_TURN_BACK_RIGHT;
+    MotorControl(35, -30, RotateIntervalRND);
+    if(MotorOK ==1)
+    {
+      MOTOR_PREV_DIRECTION = MOTOR_TURN_BACK_RIGHT;
+      AutopilotRotate=1;  
+    }
 }
 
 void MotorTurnRotateLeft()
 {
-    AutoPilot_x=-60;  //50 было сносно
-    AutoPilot_y=0;
-    //MOTOR_PREV_DIRECTION = MOTOR_TURN_BACK_LEFT;
+     MotorControl(-60, 0, RotateIntervalRND);
+     if(MotorOK ==1)
+     {
+        MOTOR_PREV_DIRECTION = MOTOR_ROTATE_LEFT; 
+        AutopilotRotate=1;  
+     }
 }
 
 void MotorTurnRotateRight()
 {
-     AutoPilot_x=60;
-     AutoPilot_y=0;
-     //MOTOR_PREV_DIRECTION = MOTOR_TURN_BACK_RIGHT;
+     MotorControl(60, 0, RotateIntervalRND);
+     if(MotorOK ==1)
+     {
+        MOTOR_PREV_DIRECTION = MOTOR_ROTATE_RIGHT;  
+        AutopilotRotate=1;   
+     }
 }
 
 void MotorStop()
 {
-     AutoPilot_x=0;
-     AutoPilot_y=0; 
+    //AutoPilot_x=0;
+     //AutoPilot_y=0; 
+     MotorControl(0, 0, 10);
 }
 
 void Mixer()
