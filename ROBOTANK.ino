@@ -14,6 +14,7 @@ float Current =0;
 // float CurentOLD = 0;
 
 float  dist_cm =0;
+float  dist_cm2 =0;
 long SonarInterval=300;
 long RotateInterval = 300;
 long FaleSafeInterval = 2000;
@@ -32,9 +33,9 @@ int  MotorOK = 0;
 
 // в сантиметрах (distance threshold) Пороги расстояний до препятствия
 // Если ближе, то резкий разворот на месте, иначе плавный доворот
-const int DST_TRH_TURN = 40;
+const int DST_TRH_TURN = 30;   //40
 // Если ближе, то стоп и назад
-const int DST_TRH_BACK = 25;
+const int DST_TRH_BACK = 15;       //25
 
  // Виды поворотов
 const byte MOTOR_ROTATE_RIGHT = 0;  // вправо резкий разворот на месте (все левые колеса крутятся вперед, все правые - назад)
@@ -70,12 +71,14 @@ int erp = 0;
 #define    FAST         250                             // Datafields refresh rate (ms)
 
 #define   RANDOMPORT 5
+#define   IR_SENSOR  10
 
 #include "Ultrasonic.h"
 
 // sensor connected to:
 // Trig - 12, Echo - 13
-Ultrasonic ultrasonic(9, 8);
+Ultrasonic ultrasonic1(9, 8);
+Ultrasonic ultrasonic2(15, 14);
 
 
 SoftwareSerial mySerial(7,6);                           // BlueTooth module: pin#2=TX pin#3=RX
@@ -103,7 +106,7 @@ void setup()  {
     pinMode(11, OUTPUT); 
     //pinMode(A0, OUTPUT); 
     //pinMode(A1, OUTPUT); 
-    pinMode(10,OUTPUT);
+    pinMode(IR_SENSOR,INPUT);
     digitalWrite(2,LOW);
 }
 
@@ -155,7 +158,7 @@ void sendBlueToothData()  {
       mySerial.print((char)STX);                                             // Start of Transmission
       mySerial.print(getButtonStatusString());  mySerial.print((char)0x1);   // buttons status feedback
       //mySerial.print(GetdataInt1());            mySerial.print((char)0x4);   // datafield #1
-      mySerial.print(dist_cm);                  mySerial.print((char)0x4);   // datafield #1
+      mySerial.print(dist_cm2);                  mySerial.print((char)0x4);   // datafield #1
       mySerial.print(Current);                   mySerial.print((char)0x5);   // datafield #2
       mySerial.print(displayStatus);                                         // datafield #3
       mySerial.print((char)ETX);                                             // End of Transmission
@@ -327,7 +330,7 @@ long GetInstantCurrent()
 {
  long value = 0;
  for (int i = 0; i < FASTCOUNT; ++i)
-  value += analogRead(CURENT_PORT);
+ value += analogRead(CURENT_PORT);
  value /= FASTCOUNT;
  return value;
 }
@@ -336,7 +339,7 @@ inline float GetCurrentFromLong(long value)
 {
  Serial.println("Curent ADC ");   
  Serial.println(value);   
- return  0.0264 * (value - 506);  //0.0264 0.0376
+ return  0.0264 * (value - 507);  //0.0264 0.0376
 }
 
 
@@ -370,8 +373,10 @@ void SonarDistance()
   if(currentMillis - previousMillis > SonarInterval) 
    {   // send data back to smartphone
       previousMillis = currentMillis; 
-      dist_cm = ultrasonic.Ranging(CM);       // get distance
+      dist_cm = ultrasonic1.distanceRead();              //Ranging(CM); get distance
       Serial.println(dist_cm);                      // print the distance
+      dist_cm2 = ultrasonic2.distanceRead();        //Ranging(CM);       get distance
+      Serial.println(dist_cm2);                      // print the distance
    
    }
 }
@@ -389,26 +394,28 @@ void Autopilot()
     if(currentMillis - previousMillis > RotateInterval) 
      {// send data back to smartphone
       previousMillis = currentMillis;    
-      RotateIntervalRND = RotateInterval + 200 * random(1,6);      //4
+      RotateIntervalRND = RotateInterval + 100 * random(1,4);      //4
 
       Serial.println("AUTOPILOT WORK");
 
       // определить направление поворота
       // прямо
-      if ( dist_cm < DST_TRH_TURN && dist_cm >DST_TRH_BACK)   
+      //int Ir = digitalRead(pushButton);
+      if (( dist_cm < DST_TRH_TURN && dist_cm >DST_TRH_BACK) || (dist_cm2 < DST_TRH_TURN && dist_cm2 >DST_TRH_BACK) || digitalRead(IR_SENSOR) == 0.)   
       {
         // направление поворота выбираем рандомно
         if(MOTOR_PREV_DIRECTION == MOTOR_FORWARD)
         {
-          rnd = random(1, 10);
-          if (rnd > 5) MotorTurnRotateRight();
+          //rnd = random(1, 10);
+          //if (rnd > 5) MotorTurnRotateRight();
+          if (dist_cm >= dist_cm2) MotorTurnRotateRight();
           else MotorTurnRotateLeft();
           
         } else if(MOTOR_PREV_DIRECTION == MOTOR_ROTATE_RIGHT) MotorTurnRotateRight(); //поворачиваем в туже сторону пока не кончится препядствие
                else MotorTurnRotateLeft();
                 
       }
-      else if ( dist_cm <= DST_TRH_BACK 
+      else if ( dist_cm <= DST_TRH_BACK || dist_cm2 <= DST_TRH_BACK )
       {
             // ранее уже поворачивали задним ходом влево?
             if (MOTOR_TURN_BACK_LEFT == MOTOR_PREV_DIRECTION) MotorTurnBackRight();
@@ -450,7 +457,7 @@ void MotorControl(signed int MotorX, signed int MotorY, long MotorWorkInt)
 
 void MotorForward()
 {
-    MotorControl(0, 35, RotateIntervalRND);
+    MotorControl(0, 45, RotateIntervalRND);
     if(MotorOK ==1)
     {
         MOTOR_PREV_DIRECTION = MOTOR_FORWARD;
@@ -461,7 +468,7 @@ void MotorForward()
 
 void MotorTurnBackLeft()
 {
-    MotorControl(-35, -30, RotateIntervalRND);
+    MotorControl(-45, -40, RotateIntervalRND);
     if(MotorOK ==1)
     {
       MOTOR_PREV_DIRECTION = MOTOR_TURN_BACK_LEFT;
@@ -471,7 +478,7 @@ void MotorTurnBackLeft()
 
 void MotorTurnBackRight()
 {
-    MotorControl(35, -30, RotateIntervalRND);
+    MotorControl(45, -40, RotateIntervalRND);
     if(MotorOK ==1)
     {
       MOTOR_PREV_DIRECTION = MOTOR_TURN_BACK_RIGHT;
