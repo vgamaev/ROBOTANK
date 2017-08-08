@@ -16,7 +16,7 @@ float Current =0;
 float  dist_cm =0;
 float  dist_cm2 =0;
 long SonarInterval=300;
-long RotateInterval = 300;
+long RotateInterval = 500;
 long FaleSafeInterval = 2000;
 int  AutopilotRotate=1;
 long RotateIntervalRND = 0;
@@ -337,8 +337,8 @@ long GetInstantCurrent()
 
 inline float GetCurrentFromLong(long value)
 {
- Serial.println("Curent ADC ");   
- Serial.println(value);   
+ //Serial.println("Curent ADC ");   
+ //Serial.println(value);   
  return  0.0264 * (value - 507);  //0.0264 0.0376
 }
 
@@ -360,8 +360,8 @@ long GetIntegratedCurrent()
 void CurrentMeter()
 {
  Current = - GetCurrentFromLong(GetIntegratedCurrent());
- Serial.println("Curent A ");   
- Serial.println(Current);   
+// Serial.println("Curent A ");   
+// Serial.println(Current);   
 }
 
 
@@ -401,7 +401,7 @@ void Autopilot()
       // определить направление поворота
       // прямо
       //int Ir = digitalRead(pushButton);
-      if (( dist_cm < DST_TRH_TURN && dist_cm >DST_TRH_BACK) || (dist_cm2 < DST_TRH_TURN && dist_cm2 >DST_TRH_BACK) || digitalRead(IR_SENSOR) == 0.)   
+      if (( dist_cm < DST_TRH_TURN && dist_cm >DST_TRH_BACK) || (dist_cm2 < DST_TRH_TURN && dist_cm2 >DST_TRH_BACK) || digitalRead(IR_SENSOR) == 0)   
       {
         // направление поворота выбираем рандомно
         if(MOTOR_PREV_DIRECTION == MOTOR_FORWARD)
@@ -468,7 +468,7 @@ void MotorForward()
 
 void MotorTurnBackLeft()
 {
-    MotorControl(-45, -40, RotateIntervalRND);
+    MotorControl(-35, -40, RotateIntervalRND);
     if(MotorOK ==1)
     {
       MOTOR_PREV_DIRECTION = MOTOR_TURN_BACK_LEFT;
@@ -478,7 +478,7 @@ void MotorTurnBackLeft()
 
 void MotorTurnBackRight()
 {
-    MotorControl(45, -40, RotateIntervalRND);
+    MotorControl(35, -40, RotateIntervalRND);
     if(MotorOK ==1)
     {
       MOTOR_PREV_DIRECTION = MOTOR_TURN_BACK_RIGHT;
