@@ -401,6 +401,17 @@ void Autopilot()
       // определить направление поворота
       // прямо
       //int Ir = digitalRead(pushButton);
+      if(AutopilotRotate==15) 
+       {
+          AutopilotRotate = 0;
+          rnd = random(1, 10);
+          if (rnd > 5)MotorTurnBackRight();
+          else MotorTurnBackLeft();        
+            return; 
+       }
+
+      AutopilotRotate++;
+      
       if (( dist_cm < DST_TRH_TURN && dist_cm >DST_TRH_BACK) || (dist_cm2 < DST_TRH_TURN && dist_cm2 >DST_TRH_BACK) || digitalRead(IR_SENSOR) == 0)   
       {
         // направление поворота выбираем рандомно
@@ -423,13 +434,6 @@ void Autopilot()
             return; 
             
       }
-      else if(AutopilotRotate==10) 
-       {
-          rnd = random(1, 10);
-          if (rnd > 5)MotorTurnBackRight();
-          else MotorTurnBackLeft();        
-            return; 
-       }
       else MotorForward();
     }
   }
@@ -461,7 +465,6 @@ void MotorForward()
     if(MotorOK ==1)
     {
         MOTOR_PREV_DIRECTION = MOTOR_FORWARD;
-        AutopilotRotate++;
     }
     Serial.println("EDEM PRAMO");
 }
@@ -472,7 +475,7 @@ void MotorTurnBackLeft()
     if(MotorOK ==1)
     {
       MOTOR_PREV_DIRECTION = MOTOR_TURN_BACK_LEFT;
-      AutopilotRotate=1;  
+      //AutopilotRotate=1;  
     }
 }
 
@@ -482,7 +485,7 @@ void MotorTurnBackRight()
     if(MotorOK ==1)
     {
       MOTOR_PREV_DIRECTION = MOTOR_TURN_BACK_RIGHT;
-      AutopilotRotate=1;  
+      //AutopilotRotate=1;  
     }
 }
 
@@ -492,7 +495,7 @@ void MotorTurnRotateLeft()
      if(MotorOK ==1)
      {
         MOTOR_PREV_DIRECTION = MOTOR_ROTATE_LEFT; 
-        AutopilotRotate=1;  
+        //AutopilotRotate=1;  
      }
 }
 
@@ -502,7 +505,7 @@ void MotorTurnRotateRight()
      if(MotorOK ==1)
      {
         MOTOR_PREV_DIRECTION = MOTOR_ROTATE_RIGHT;  
-        AutopilotRotate=1;   
+        //AutopilotRotate=1;   
      }
 }
 
